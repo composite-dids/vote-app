@@ -216,3 +216,15 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Hardhat
+artifacts/
+cache/
+typechain-types/
+
+# Generated contract ABIs (run `npm run build`)
+frontend/src/contracts/
+backend/contracts/
+
+# Deployed addresses (environment-specific)
+shared/deployment.json

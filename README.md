@@ -1,0 +1,122 @@
+# ChainVote — Decentralized Voting dApp
+
+A full voting application on **Sepolia**:
+
+- **Smart contracts** (Solidity + Hardhat) — `Registration` (who may vote) and `Voting` (proposals, yes/no tallies, time windows, double-vote protection).
+- **Backend** (Express + ethers) — admin login, read-only chain queries (proposals, time-left, registration status), and an optional server-signer that registers voters on-chain.
+- **Frontend** (React + Vite + ethers v6) — connect MetaMask, vote on proposals with a live countdown, and an admin console to deploy contracts and publish proposals.
+
+Votes and contract deployments are **signed in the browser via MetaMask**, so a voter's address is provable from the transaction (`msg.sender`). The backend never holds user keys.
+
+---
+
+## How a vote is validated (on-chain)
+
+`Voting.vote(proposalId, support)` reverts unless **all** hold:
+
+1. The proposal exists and `startTime <= now <= endTime` (period enforced in the contract).
+2. `Registration.isRegistered(msg.sender)` returns `true` (else "not registered").
+3. `hasVoted[proposalId][msg.sender]` is `false` (the double-vote hashtable).
+
+On success it increments `yesCount`/`noCount` and sets `hasVoted[...] = true`.
+
+---
+
+## Project layout
+
+```
+contracts/         Registration.sol, Voting.sol
+scripts/           deploy.js (CLI deploy), export-abi.js (ABIs -> frontend & backend)
+test/              Voting.test.js (Hardhat tests)
+backend/           Express API (server.js)
+frontend/          React + Vite app
+shared/            deployment.json (deployed addresses, written by admin/CLI)
+```
+
+---
+
+## Setup
+
+Prerequisites: Node 18–22 recommended, MetaMask in your browser, and some Sepolia test ETH ([faucet](https://sepoliafaucet.com)).
+
+### 1. Contracts
+
+```bash
+npm install        # in project root
+npm run build      # compiles + exports ABIs to frontend/ and backend/
+npm test           # optional: runs the contract test suite
+```
+
+### 2. Backend
+
+```bash
+cd backend
+npm install
+cp .env.example .env   # then edit credentials / RPC if desired
+npm start              # http://localhost:4000
+```
+
+Key `.env` settings: `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `JWT_SECRET`, `RPC_URL`, `CHAIN_ID`.
+Set `REGISTRAR_PRIVATE_KEY` (the Registration owner's key) to enable the backend's `POST /api/register` relayer.
+
+### 3. Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev            # http://localhost:5173 (proxies /api -> :4000)
+```
+
+---
+
+## Using it
+
+### Admin
+
+1. Open the app → **Admin** tab → sign in (default `admin` / `changeme`).
+2. Connect your MetaMask wallet (on Sepolia).
+3. **Deploy contracts** — deploys `Registration` + `Voting` from your wallet and saves the addresses to the backend.
+4. **Publish a proposal** — enter a topic and pick start/end times (the voting period).
+5. **Register voters** — add voter addresses (you must be the Registration owner).
+
+### Voter
+
+1. **Vote** tab → connect MetaMask.
+2. If not registered, click **Register me** (self-registration) — or ask the admin.
+3. Pick **Yes**/**No** on an open proposal and **Submit** — confirm the tx in MetaMask.
+4. The card shows a live countdown, the running tally, and blocks a second vote.
+
+---
+
+## CLI deploy (alternative to the admin UI)
+
+```bash
+# root .env: SEPOLIA_RPC_URL + DEPLOYER_PRIVATE_KEY
+npm run deploy:sepolia      # writes shared/deployment.json
+```
+
+Or run a local chain: `npm run node` then `npm run deploy:local`.
+
+---
+
+## API reference (backend)
+
+| Method | Path | Auth | Description |
+| ------ | ---- | ---- | ----------- |
+| GET  | `/api/health` | – | Liveness |
+| POST | `/api/admin/login` | – | `{username,password}` → `{token}` |
+| GET  | `/api/config` | – | Deployed addresses + chain info |
+| POST | `/api/config` | admin | Record addresses after browser deploy |
+| GET  | `/api/proposals` | – | All proposals with status + `secondsLeft` |
+| GET  | `/api/proposals/:id` | – | One proposal |
+| GET  | `/api/proposals/:id/status/:address` | – | `{isRegistered, voted, active}` |
+| GET  | `/api/registered/:address` | – | Registration check API proxy |
+| POST | `/api/register` | admin | Relayer registers a voter (needs `REGISTRAR_PRIVATE_KEY`) |
+
+---
+
+## Notes / security
+
+- Admin auth is a simple username/password → JWT for the demo. Use a real identity provider and strong `JWT_SECRET` in production.
+- The on-chain owner of `Registration`/`Voting` is whichever wallet deployed them — keep admin login and that wallet aligned.
+- `shared/deployment.json` and `.env` files hold environment-specific data; don't commit secrets.

@@ -1,0 +1,19 @@
+{
+  "name": "vote-app-contracts",
+  "version": "1.0.0",
+  "description": "Solidity contracts (Registration + Voting) for the voting dApp, built with Hardhat.",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "export-abi": "node scripts/export-abi.js",
+    "build": "hardhat compile && node scripts/export-abi.js",
+    "node": "hardhat node",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "dotenv": "^16.4.5",
+    "hardhat": "^2.22.10"
+  }
+}
