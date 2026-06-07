@@ -1,0 +1,44 @@
+{
+  "contractName": "DIDRegistry",
+  "_comment": "Minimal read-only ABI for the live composite-DID registry on Sepolia (0xb1768B404EB4102CCF4DBc0c9b661a17D48dcef8). The vote-app only READS this contract's de-dup hashtable to decide who may vote; registration itself happens in the separate DID app via the composite-DID proof flow.",
+  "abi": [
+    {
+      "type": "function",
+      "name": "isRegistered",
+      "stateMutability": "view",
+      "inputs": [{ "name": "account", "type": "address" }],
+      "outputs": [{ "name": "", "type": "bool" }]
+    },
+    {
+      "type": "function",
+      "name": "registeredSignalsOf",
+      "stateMutability": "view",
+      "inputs": [{ "name": "account", "type": "address" }],
+      "outputs": [{ "name": "", "type": "uint8" }]
+    },
+    {
+      "type": "function",
+      "name": "isHandleUsed",
+      "stateMutability": "view",
+      "inputs": [
+        { "name": "slot", "type": "uint8" },
+        { "name": "handle", "type": "string" }
+      ],
+      "outputs": [{ "name": "", "type": "bool" }]
+    },
+    {
+      "type": "function",
+      "name": "numSignals",
+      "stateMutability": "view",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "uint256" }]
+    },
+    {
+      "type": "function",
+      "name": "balanceOf",
+      "stateMutability": "view",
+      "inputs": [{ "name": "owner", "type": "address" }],
+      "outputs": [{ "name": "", "type": "uint256" }]
+    }
+  ]
+}

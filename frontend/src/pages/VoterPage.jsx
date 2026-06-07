@@ -57,6 +57,7 @@ export default function VoterPage({ wallet, config }) {
           proposal={p}
           config={config}
           signer={wallet.signer}
+          address={wallet.address}
           status={statuses[p.id]}
           onChanged={load}
         />

@@ -17,8 +17,9 @@ const {
   JWT_SECRET = "dev-secret-change-me",
   RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com",
   CHAIN_ID = "11155111",
-  REGISTRAR_PRIVATE_KEY = "",
   PORT = "4000",
+  // Live composite-DID registry on Sepolia (the "check API" for who may vote).
+  DID_REGISTRY = "0xb1768B404EB4102CCF4DBc0c9b661a17D48dcef8",
 } = process.env;
 
 // ---------------------------------------------------------------------------
@@ -35,7 +36,9 @@ function loadAbi(name) {
   return JSON.parse(fs.readFileSync(file, "utf8")).abi;
 }
 const VOTING_ABI = loadAbi("Voting");
-const REGISTRATION_ABI = loadAbi("Registration");
+// Registration is the live composite-DID registry; we only read its isRegistered
+// hashtable, so a minimal read-only ABI is enough.
+const REGISTRATION_ABI = loadAbi("DIDRegistry");
 
 // ---------------------------------------------------------------------------
 // Deployment config: shared/deployment.json holds the deployed addresses.
@@ -52,6 +55,12 @@ function readDeployment() {
     console.error("Failed to read deployment.json:", e.message);
   }
   return { registrationAddress: null, votingAddress: null, chainId: Number(CHAIN_ID) };
+}
+
+// Registration always resolves to the live DID registry unless deployment.json
+// explicitly overrides it.
+function registrationAddressOf(deployment) {
+  return deployment.registrationAddress || DID_REGISTRY;
 }
 
 function writeDeployment(data) {
@@ -72,7 +81,7 @@ function votingContract(runner = provider) {
 }
 
 function registrationContract(runner = provider) {
-  const { registrationAddress } = readDeployment();
+  const registrationAddress = registrationAddressOf(readDeployment());
   if (!registrationAddress) throw new Error("Registration contract not configured yet");
   if (!REGISTRATION_ABI) throw new Error("Registration ABI not exported");
   return new ethers.Contract(registrationAddress, REGISTRATION_ABI, runner);
@@ -118,28 +127,29 @@ app.post("/api/admin/login", (req, res) => {
 app.get("/api/config", (_req, res) => {
   const d = readDeployment();
   res.json({
-    registrationAddress: d.registrationAddress || null,
+    registrationAddress: registrationAddressOf(d),
     votingAddress: d.votingAddress || null,
     chainId: d.chainId || Number(CHAIN_ID),
     rpcUrl: RPC_URL,
-    relayerEnabled: Boolean(REGISTRAR_PRIVATE_KEY),
   });
 });
 
-// Admin records the addresses after deploying from the browser.
+// Admin records the Voting address after deploying from the browser. The
+// registration address defaults to the live DID registry (override optional).
 app.post("/api/config", requireAdmin, (req, res) => {
   const { registrationAddress, votingAddress, chainId } = req.body || {};
-  if (!ethers.isAddress(registrationAddress) || !ethers.isAddress(votingAddress)) {
+  if (!ethers.isAddress(votingAddress)) {
     return res.status(400).json({
-      error: `Invalid addresses — registration=${JSON.stringify(
-        registrationAddress
-      )}, voting=${JSON.stringify(votingAddress)}`,
+      error: `Invalid voting address — ${JSON.stringify(votingAddress)}`,
     });
   }
+  const registration =
+    registrationAddress && ethers.isAddress(registrationAddress)
+      ? ethers.getAddress(registrationAddress)
+      : DID_REGISTRY;
   const data = {
     ...readDeployment(),
-    // Normalize to checksummed form.
-    registrationAddress: ethers.getAddress(registrationAddress),
+    registrationAddress: registration,
     votingAddress: ethers.getAddress(votingAddress),
     chainId: chainId || Number(CHAIN_ID),
     updatedAt: new Date().toISOString(),
@@ -229,23 +239,27 @@ app.get("/api/proposals/:id/status/:address", async (req, res) => {
   }
 });
 
-// --- Optional relayer: backend registers a voter on-chain (the "send tx" role) ---
-app.post("/api/register", requireAdmin, async (req, res) => {
-  if (!REGISTRAR_PRIVATE_KEY) {
-    return res.status(400).json({ error: "Relayer disabled (no REGISTRAR_PRIVATE_KEY)" });
-  }
+// Vote pre-check: rejects a repeat (or otherwise invalid) vote IMMEDIATELY,
+// before the client asks the wallet to sign — no tx, no gas, no on-chain revert.
+// The frontend never blocks its button on `voted`; this endpoint is the gate.
+app.get("/api/proposals/:id/precheck/:address", async (req, res) => {
   try {
-    const { address } = req.body || {};
+    const id = Number(req.params.id);
+    const { address } = req.params;
     if (!ethers.isAddress(address)) {
-      return res.status(400).json({ error: "Invalid address" });
+      return res.json({ allowed: false, reason: "Invalid address." });
     }
-    const wallet = new ethers.Wallet(REGISTRAR_PRIVATE_KEY, provider);
-    const registration = registrationContract(wallet);
-    const tx = await registration.registerVoter(address);
-    const receipt = await tx.wait();
-    res.json({ ok: true, txHash: receipt.hash, address });
+    const voting = votingContract();
+    const [isRegistered, voted, active] = await voting.getVoteStatus(id, address);
+    if (voted)
+      return res.json({ allowed: false, reason: "You have already voted on this proposal." });
+    if (!isRegistered)
+      return res.json({ allowed: false, reason: "Your address is not registered (no DID credential)." });
+    if (!active)
+      return res.json({ allowed: false, reason: "Voting is not open right now." });
+    return res.json({ allowed: true, reason: null });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(503).json({ error: e.message });
   }
 });
 
@@ -254,7 +268,7 @@ app.listen(Number(PORT), () => {
   console.log(`RPC: ${RPC_URL} (chainId ${CHAIN_ID})`);
   const d = readDeployment();
   console.log(
-    `Contracts: registration=${d.registrationAddress || "—"} voting=${
+    `Contracts: registration(DID)=${registrationAddressOf(d)} voting=${
       d.votingAddress || "—"
     }`
   );

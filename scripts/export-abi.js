@@ -6,11 +6,10 @@
 const fs = require("fs");
 const path = require("path");
 
+// Only Voting is exported here. Registration is the external, already-deployed
+// composite-DID registry; its read-only ABI is hand-maintained at
+// frontend/src/contracts/DIDRegistry.json and backend/contracts/DIDRegistry.json.
 const artifacts = [
-  {
-    name: "Registration",
-    artifact: "artifacts/contracts/Registration.sol/Registration.json",
-  },
   {
     name: "Voting",
     artifact: "artifacts/contracts/Voting.sol/Voting.json",

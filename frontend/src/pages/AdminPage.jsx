@@ -1,12 +1,7 @@
 import { useState } from "react";
 import { ethers } from "ethers";
 import { api } from "../lib/api.js";
-import {
-  deployContracts,
-  votingContract,
-  registrationContract,
-  friendlyError,
-} from "../lib/eth.js";
+import { deployContracts, votingContract, friendlyError } from "../lib/eth.js";
 
 function toUnix(localValue) {
   // localValue is "YYYY-MM-DDTHH:mm" in local time.
@@ -41,11 +36,6 @@ export default function AdminPage({ wallet, config, onConfigChange }) {
   const [propMsg, setPropMsg] = useState(null);
   const [propErr, setPropErr] = useState(null);
   const [publishing, setPublishing] = useState(false);
-
-  // Register voter
-  const [voterAddr, setVoterAddr] = useState("");
-  const [regMsg, setRegMsg] = useState(null);
-  const [regErr, setRegErr] = useState(null);
 
   async function login(e) {
     e.preventDefault();
@@ -160,22 +150,6 @@ export default function AdminPage({ wallet, config, onConfigChange }) {
     }
   }
 
-  async function registerVoter(e) {
-    e.preventDefault();
-    setRegErr(null);
-    setRegMsg(null);
-    try {
-      const contract = registrationContract(config.registrationAddress, wallet.signer);
-      const tx = await contract.registerVoter(voterAddr);
-      setRegMsg("Registering… waiting for confirmation.");
-      await tx.wait();
-      setRegMsg("✅ Voter registered.");
-      setVoterAddr("");
-    } catch (e) {
-      setRegErr(friendlyError(e));
-    }
-  }
-
   if (!token) {
     return (
       <div className="card admin-login">
@@ -210,16 +184,18 @@ export default function AdminPage({ wallet, config, onConfigChange }) {
   return (
     <div className="admin-grid">
       <section className="card">
-        <h2>1 · Deploy contracts (Sepolia)</h2>
+        <h2>1 · Deploy the Voting contract (Sepolia)</h2>
         <p className="hint">
-          Deploys <code>Registration</code> + <code>Voting</code> from your connected
-          wallet. On this static site the new addresses are saved to your browser
-          immediately; to make them live for everyone, commit them to{" "}
-          <code>public/config.json</code> (snippet shown after deploy).
+          Deploys <code>Voting</code> from your connected wallet, pointed at the
+          live <code>DIDRegistry</code> below — registration is external, so no
+          Registration contract is deployed here. On this static site the new
+          address is saved to your browser immediately; to make it live for
+          everyone, commit it to <code>public/config.json</code> (snippet shown
+          after deploy).
         </p>
         <div className="config-line">
-          <span>Registration:</span>
-          <code>{config?.registrationAddress || "— not deployed —"}</code>
+          <span>DID registry (read-only):</span>
+          <code>{config?.registrationAddress || "—"}</code>
         </div>
         <div className="config-line">
           <span>Voting:</span>
@@ -302,27 +278,17 @@ export default function AdminPage({ wallet, config, onConfigChange }) {
       </section>
 
       <section className="card">
-        <h2>3 · Register a voter</h2>
+        <h2>3 · Voter registration</h2>
         <p className="hint">
-          Only registered addresses can vote. Add a voter's address here (you must be
-          the Registration owner).
+          Eligibility is decided by the live composite-DID registry — the admin
+          does not register voters. Anyone who earns a DID credential in the DID
+          app is automatically allowed to vote; the Voting contract reads that
+          registry's <code>isRegistered</code> hashtable on every vote.
         </p>
-        <form onSubmit={registerVoter}>
-          <label>
-            Voter address
-            <input
-              value={voterAddr}
-              onChange={(e) => setVoterAddr(e.target.value)}
-              placeholder="0x…"
-              required
-            />
-          </label>
-          <button className="submit" type="submit" disabled={!config?.registrationAddress}>
-            Register voter
-          </button>
-          {regMsg && <div className="note success">{regMsg}</div>}
-          {regErr && <div className="note error">{regErr}</div>}
-        </form>
+        <div className="config-line">
+          <span>DID registry:</span>
+          <code>{config?.registrationAddress || "—"}</code>
+        </div>
       </section>
     </div>
   );

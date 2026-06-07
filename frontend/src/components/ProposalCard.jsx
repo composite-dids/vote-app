@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Countdown from "./Countdown.jsx";
 import { votingContract, friendlyError } from "../lib/eth.js";
+import { api } from "../lib/api.js";
 
 const statusLabel = {
   upcoming: "Upcoming",
@@ -8,7 +9,14 @@ const statusLabel = {
   ended: "Closed",
 };
 
-export default function ProposalCard({ proposal, config, signer, status, onChanged }) {
+export default function ProposalCard({
+  proposal,
+  config,
+  signer,
+  address,
+  status,
+  onChanged,
+}) {
   const [choice, setChoice] = useState(null); // true=yes, false=no
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -21,7 +29,9 @@ export default function ProposalCard({ proposal, config, signer, status, onChang
   const voted = status?.voted;
   const registered = status?.isRegistered;
   const active = proposal.status === "active";
-  const canVote = active && registered && !voted;
+  // Note: `voted` deliberately does NOT block voting in the UI — a repeat vote
+  // is allowed to be attempted and is rejected by the backend pre-check below.
+  const canVote = active && registered;
 
   async function submit() {
     if (choice === null) {
@@ -32,6 +42,13 @@ export default function ProposalCard({ proposal, config, signer, status, onChang
     setMsg(null);
     setBusy(true);
     try {
+      // Backend pre-check FIRST: a repeat vote is rejected immediately here,
+      // before MetaMask is ever opened (no prompt, no gas, no on-chain revert).
+      const pre = await api.precheckVote(proposal.id, address);
+      if (!pre.allowed) {
+        setErr(pre.reason);
+        return;
+      }
       const contract = votingContract(config, signer);
       const tx = await contract.vote(proposal.id, choice);
       setMsg("Submitting vote… waiting for confirmation.");
@@ -79,11 +96,19 @@ export default function ProposalCard({ proposal, config, signer, status, onChang
         </div>
       </div>
 
-      {voted ? (
-        <div className="note success">You have voted on this proposal.</div>
-      ) : !registered ? (
+      {/* Already-voted notice — informative only; it does NOT hide the controls
+          or disable the button. A second submit is allowed to be attempted and
+          gets rejected by the pre-check. */}
+      {voted && (
+        <div className="note success">
+          You have already voted on this proposal. You can try again, but a
+          repeat vote will be rejected.
+        </div>
+      )}
+
+      {!registered ? (
         <div className="note warn">
-          Your address is not registered, so you cannot vote.
+          Your address is not registered (no DID credential), so you cannot vote.
         </div>
       ) : !active ? (
         <div className="note">Voting is not open right now.</div>

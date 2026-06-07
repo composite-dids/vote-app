@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import RegistrationArtifact from "../contracts/Registration.json";
+import DIDRegistryArtifact from "../contracts/DIDRegistry.json";
 import VotingArtifact from "../contracts/Voting.json";
 
 export const SEPOLIA = {
@@ -7,6 +7,16 @@ export const SEPOLIA = {
   chainIdHex: "0xaa36a7",
   name: "Sepolia",
 };
+
+// The live composite-DID registry on Sepolia. Voting checks its on-chain
+// hashtable (isRegistered) to decide who may vote — the vote-app no longer
+// deploys its own Registration contract. Users register in the separate DID
+// app; the credential they earn there lands in this registry.
+export const DID_REGISTRY_ADDRESS =
+  "0xb1768B404EB4102CCF4DBc0c9b661a17D48dcef8";
+
+// Where voters go to obtain a DID credential (the composite-DID frontend).
+export const DID_REGISTER_APP_URL = "https://composite-dids.github.io/";
 
 export function hasMetaMask() {
   return typeof window !== "undefined" && Boolean(window.ethereum);
@@ -75,28 +85,29 @@ export function votingContract(addressOrConfig, runner) {
   return new ethers.Contract(address, VotingArtifact.abi, runner);
 }
 
+// Reads against the live DIDRegistry (isRegistered / registeredSignalsOf).
 export function registrationContract(address, runner) {
-  return new ethers.Contract(address, RegistrationArtifact.abi, runner);
+  return new ethers.Contract(
+    address || DID_REGISTRY_ADDRESS,
+    DIDRegistryArtifact.abi,
+    runner
+  );
 }
 
-/** Deploy Registration then Voting from the admin's browser wallet. */
-export async function deployContracts(signer, onStep) {
-  const RegistrationFactory = new ethers.ContractFactory(
-    RegistrationArtifact.abi,
-    RegistrationArtifact.bytecode,
-    signer
-  );
-  onStep?.("Deploying Registration…");
-  const registration = await RegistrationFactory.deploy();
-  await registration.waitForDeployment();
-  const registrationAddress = await registration.getAddress();
+/**
+ * Deploy only the Voting contract, pointing it at the live DIDRegistry.
+ * Registration is external (the composite-DID app), so we no longer deploy a
+ * Registration contract here.
+ */
+export async function deployContracts(signer, onStep, registryAddress) {
+  const registrationAddress = registryAddress || DID_REGISTRY_ADDRESS;
 
   const VotingFactory = new ethers.ContractFactory(
     VotingArtifact.abi,
     VotingArtifact.bytecode,
     signer
   );
-  onStep?.("Deploying Voting…");
+  onStep?.("Deploying Voting (using the live DID registry)…");
   const voting = await VotingFactory.deploy(registrationAddress);
   await voting.waitForDeployment();
   const votingAddress = await voting.getAddress();

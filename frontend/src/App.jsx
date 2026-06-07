@@ -5,9 +5,9 @@ import {
   switchWallet,
   ensureSepolia,
   hasMetaMask,
-  registrationContract,
   friendlyError,
   SEPOLIA,
+  DID_REGISTER_APP_URL,
 } from "./lib/eth.js";
 import VoterPage from "./pages/VoterPage.jsx";
 import AdminPage from "./pages/AdminPage.jsx";
@@ -18,7 +18,6 @@ export default function App() {
   const [tab, setTab] = useState("vote");
   const [connectErr, setConnectErr] = useState(null);
   const [registered, setRegistered] = useState(null);
-  const [regBusy, setRegBusy] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const loadConfig = useCallback(async () => {
@@ -108,23 +107,6 @@ export default function App() {
       await connect();
     } catch (e) {
       setConnectErr(friendlyError(e));
-    }
-  }
-
-  async function selfRegister() {
-    setRegBusy(true);
-    try {
-      const contract = registrationContract(
-        config.registrationAddress,
-        wallet.signer
-      );
-      const tx = await contract.register();
-      await tx.wait();
-      await refreshRegistration(wallet.address);
-    } catch (e) {
-      setConnectErr(friendlyError(e));
-    } finally {
-      setRegBusy(false);
     }
   }
 
@@ -222,20 +204,26 @@ export default function App() {
 
         {wallet && tab === "vote" && (
           <>
-            {config?.registrationAddress && registered === false && (
+            {registered === false && (
               <div className="card note warn registration-banner">
                 <div>
-                  <strong>Your address is not registered.</strong> You must be
-                  registered before you can vote.
+                  <strong>Your address has no DID credential.</strong> Voting is
+                  gated by the on-chain DID registry — get a credential there
+                  first, then come back to vote.
                 </div>
-                <button className="submit" onClick={selfRegister} disabled={regBusy}>
-                  {regBusy ? "Registering…" : "Register me"}
-                </button>
+                <a
+                  className="submit"
+                  href={DID_REGISTER_APP_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Register a DID →
+                </a>
               </div>
             )}
             {registered === true && (
               <div className="card note success compact">
-                ✓ Your address is registered to vote.
+                ✓ Your address holds a DID credential — you can vote.
               </div>
             )}
             <VoterPage wallet={wallet} config={config} />

@@ -3,7 +3,11 @@
 // MetaMask in the components). It keeps the same method names the components
 // already use (api.getConfig, api.getProposals, ...).
 import { ethers } from "ethers";
-import { votingContract, registrationContract } from "./eth.js";
+import {
+  votingContract,
+  registrationContract,
+  DID_REGISTRY_ADDRESS,
+} from "./eth.js";
 
 const DEFAULT_RPC = "https://ethereum-sepolia-rpc.publicnode.com";
 const DEFAULT_CHAIN_ID = 11155111;
@@ -68,13 +72,13 @@ async function resolveConfig() {
   const override = loadLocalOverride(); // admin's freshly-deployed addresses
   const cfg = { ...stat, ...override };
   return {
-    registrationAddress: cfg.registrationAddress || null,
+    // Registration is always the live DIDRegistry unless explicitly overridden.
+    registrationAddress: cfg.registrationAddress || DID_REGISTRY_ADDRESS,
     votingAddress: cfg.votingAddress || null,
     chainId: cfg.chainId || DEFAULT_CHAIN_ID,
     rpcUrl: cfg.rpcUrl || DEFAULT_RPC,
     adminUsername: cfg.adminUsername || "admin",
     adminPassword: cfg.adminPassword || "changeme",
-    relayerEnabled: false,
   };
 }
 
@@ -132,12 +136,29 @@ export const api = {
 
   async isRegistered(address) {
     const cfg = await resolveConfig();
-    if (!cfg.registrationAddress) throw new Error("No registration contract configured");
     const registration = registrationContract(
       cfg.registrationAddress,
       getReadProvider(cfg.rpcUrl)
     );
     const registered = await registration.isRegistered(address);
     return { address, registered };
+  },
+
+  // Server-side pre-flight performed BEFORE asking the wallet to sign. A repeat
+  // vote (already in the Voting contract's hashtable) is rejected here
+  // immediately — no MetaMask prompt, no gas, no on-chain revert. The UI never
+  // blocks the button on `voted`; this is the gate that does.
+  async precheckVote(id, address) {
+    const cfg = await resolveConfig();
+    if (!ethers.isAddress(address)) return { allowed: false, reason: "Invalid address." };
+    const voting = votingContract(cfg.votingAddress, getReadProvider(cfg.rpcUrl));
+    const [isRegistered, voted, active] = await voting.getVoteStatus(id, address);
+    if (voted)
+      return { allowed: false, reason: "You have already voted on this proposal." };
+    if (!isRegistered)
+      return { allowed: false, reason: "Your address is not registered (no DID credential)." };
+    if (!active)
+      return { allowed: false, reason: "Voting is not open right now." };
+    return { allowed: true, reason: null };
   },
 };
