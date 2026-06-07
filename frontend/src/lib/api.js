@@ -144,19 +144,22 @@ export const api = {
     return { address, registered };
   },
 
-  // Server-side pre-flight performed BEFORE asking the wallet to sign. A repeat
-  // vote (already in the Voting contract's hashtable) is rejected here
-  // immediately — no MetaMask prompt, no gas, no on-chain revert. The UI never
-  // blocks the button on `voted`; this is the gate that does.
+  // Pre-flight performed BEFORE asking the wallet to sign, ordered to match the
+  // voting flow: first the LOCAL already-voted check (a repeat vote — already in
+  // the Voting contract's per-proposal hashtable — is rejected immediately here,
+  // no MetaMask prompt, no gas), then the voting-window check. Registration is
+  // intentionally NOT checked here: it is verified last, as a fetch from the
+  // registration contract performed on-chain inside Voting.vote() when the
+  // transaction is sent (the contract reverts "Voting: not registered" for an
+  // address with no DID credential). The UI never blocks the button on `voted`;
+  // this is the gate that does.
   async precheckVote(id, address) {
     const cfg = await resolveConfig();
     if (!ethers.isAddress(address)) return { allowed: false, reason: "Invalid address." };
     const voting = votingContract(cfg.votingAddress, getReadProvider(cfg.rpcUrl));
-    const [isRegistered, voted, active] = await voting.getVoteStatus(id, address);
+    const [, voted, active] = await voting.getVoteStatus(id, address);
     if (voted)
       return { allowed: false, reason: "You have already voted on this proposal." };
-    if (!isRegistered)
-      return { allowed: false, reason: "Your address is not registered (no DID credential)." };
     if (!active)
       return { allowed: false, reason: "Voting is not open right now." };
     return { allowed: true, reason: null };

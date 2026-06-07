@@ -27,11 +27,13 @@ export default function ProposalCard({
   const noPct = total ? 100 - yesPct : 0;
 
   const voted = status?.voted;
-  const registered = status?.isRegistered;
   const active = proposal.status === "active";
-  // Note: `voted` deliberately does NOT block voting in the UI — a repeat vote
-  // is allowed to be attempted and is rejected by the backend pre-check below.
-  const canVote = active && registered;
+  // Registration is deliberately NOT a UI gate. A connected wallet can always
+  // attempt to vote on an active proposal; whether the address is registered is
+  // only checked when it votes — fetched from the registration contract in
+  // submit() and ultimately enforced on-chain by Voting.vote(). Likewise `voted`
+  // does not disable the button; a repeat vote is rejected by the pre-check.
+  const canVote = active;
 
   async function submit() {
     if (choice === null) {
@@ -106,11 +108,7 @@ export default function ProposalCard({
         </div>
       )}
 
-      {!registered ? (
-        <div className="note warn">
-          Your address is not registered (no DID credential), so you cannot vote.
-        </div>
-      ) : !active ? (
+      {!active ? (
         <div className="note">Voting is not open right now.</div>
       ) : (
         <div className="vote-controls">

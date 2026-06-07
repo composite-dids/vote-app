@@ -7,7 +7,6 @@ import {
   hasMetaMask,
   friendlyError,
   SEPOLIA,
-  DID_REGISTER_APP_URL,
 } from "./lib/eth.js";
 import VoterPage from "./pages/VoterPage.jsx";
 import AdminPage from "./pages/AdminPage.jsx";
@@ -17,7 +16,6 @@ export default function App() {
   const [config, setConfig] = useState(null);
   const [tab, setTab] = useState("vote");
   const [connectErr, setConnectErr] = useState(null);
-  const [registered, setRegistered] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const loadConfig = useCallback(async () => {
@@ -39,7 +37,6 @@ export default function App() {
       // Empty array => the user locked MetaMask or revoked access.
       if (!accounts || accounts.length === 0) {
         setWallet(null);
-        setRegistered(null);
       } else {
         connect();
       }
@@ -53,25 +50,10 @@ export default function App() {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const refreshRegistration = useCallback(
-    async (address) => {
-      if (!address || !config?.registrationAddress) {
-        setRegistered(null);
-        return;
-      }
-      try {
-        const { registered } = await api.isRegistered(address);
-        setRegistered(registered);
-      } catch {
-        setRegistered(null);
-      }
-    },
-    [config]
-  );
-
-  useEffect(() => {
-    if (wallet?.address) refreshRegistration(wallet.address);
-  }, [wallet, refreshRegistration]);
+  // NOTE: registration is intentionally NOT checked at connect time. A wallet
+  // can connect and browse proposals freely; whether the address holds a DID
+  // credential is only verified when it actually votes (see ProposalCard +
+  // api.precheckVote, and enforced on-chain by Voting.vote()).
 
   async function connect() {
     setConnectErr(null);
@@ -89,7 +71,6 @@ export default function App() {
     try {
       const w = await switchWallet();
       setWallet(w);
-      setRegistered(null);
     } catch (e) {
       setConnectErr(friendlyError(e));
     }
@@ -98,7 +79,6 @@ export default function App() {
   function disconnect() {
     setMenuOpen(false);
     setWallet(null);
-    setRegistered(null);
   }
 
   async function switchNetwork() {
@@ -203,31 +183,7 @@ export default function App() {
         )}
 
         {wallet && tab === "vote" && (
-          <>
-            {registered === false && (
-              <div className="card note warn registration-banner">
-                <div>
-                  <strong>Your address has no DID credential.</strong> Voting is
-                  gated by the on-chain DID registry — get a credential there
-                  first, then come back to vote.
-                </div>
-                <a
-                  className="submit"
-                  href={DID_REGISTER_APP_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Register a DID →
-                </a>
-              </div>
-            )}
-            {registered === true && (
-              <div className="card note success compact">
-                ✓ Your address holds a DID credential — you can vote.
-              </div>
-            )}
-            <VoterPage wallet={wallet} config={config} />
-          </>
+          <VoterPage wallet={wallet} config={config} />
         )}
 
         {wallet && tab === "admin" && (

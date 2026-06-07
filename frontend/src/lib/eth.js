@@ -124,7 +124,8 @@ export function friendlyError(err) {
     err?.data?.message ||
     err?.message ||
     "Transaction failed";
-  if (msg.includes("not registered")) return "Your address is not registered.";
+  if (msg.includes("not registered"))
+    return "Your address is not registered (no DID credential), so this vote was rejected.";
   if (msg.includes("already voted")) return "You have already voted on this proposal.";
   if (msg.includes("not started")) return "Voting has not started yet.";
   if (msg.includes("ended")) return "Voting has ended.";
