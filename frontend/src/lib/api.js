@@ -1,4 +1,4 @@
-// Fully-static data layer. There is no backend on GitHub Pages, so this reads
+// frontend/src/lib/api.js// Fully-static data layer. There is no backend on GitHub Pages, so this reads
 // contract state directly from a public Sepolia RPC (writes still go through
 // MetaMask in the components). It keeps the same method names the components
 // already use (api.getConfig, api.getProposals, ...).

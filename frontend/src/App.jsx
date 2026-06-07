@@ -190,11 +190,6 @@ export default function App() {
           <AdminPage wallet={wallet} config={config} onConfigChange={loadConfig} />
         )}
       </main>
-
-      <footer className="footer">
-        Fully on-chain · reads via public RPC · votes &amp; deploys are signed in your
-        wallet.
-      </footer>
     </div>
   );
 }
