@@ -163,8 +163,7 @@ export default function App() {
           <div className="card hero">
             <h2>Connect your wallet to begin</h2>
             <p>
-              Voting is done by sending a transaction from your own wallet, so your
-              address proves who you are. Connect MetaMask to see open proposals.
+            Connect MetaMask to see open proposals.
             </p>
             <button className="connect big" onClick={connect}>
               Connect MetaMask
