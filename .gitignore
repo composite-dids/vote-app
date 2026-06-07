@@ -229,3 +229,8 @@ backend/contracts/
 
 # Deployed addresses (environment-specific)
 shared/deployment.json
+
+# The Node template ignores any "lib/" dir, but our frontend source lives in
+# frontend/src/lib — keep it tracked.
+!frontend/src/lib/
+!frontend/src/lib/**
