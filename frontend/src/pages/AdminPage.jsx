@@ -203,12 +203,6 @@ export default function AdminPage({ wallet, config, onConfigChange }) {
           </button>
           {loginErr && <div className="note error">{loginErr}</div>}
         </form>
-        <p className="hint">
-          Default credentials: <code>admin</code> / <code>changeme</code> (set in{" "}
-          <code>public/config.json</code>). This is a cosmetic gate only — admin
-          actions are truly protected on-chain: they only succeed from the wallet
-          that owns the contracts.
-        </p>
       </div>
     );
   }
