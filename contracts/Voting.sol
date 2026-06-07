@@ -51,12 +51,14 @@ contract Voting {
         registration = IRegistration(registrationAddress);
     }
 
-    /// @notice Admin publishes a proposal with a configurable voting period.
+    /// @notice Anyone with a connected wallet may publish a proposal with a
+    ///         configurable voting period. (Creation is intentionally open;
+    ///         eligibility to *vote* is still gated by the Registration check.)
     function createProposal(
         string calldata topic,
         uint256 startTime,
         uint256 endTime
-    ) external onlyOwner returns (uint256 proposalId) {
+    ) external returns (uint256 proposalId) {
         require(bytes(topic).length > 0, "Voting: empty topic");
         require(endTime > startTime, "Voting: end <= start");
         require(endTime > block.timestamp, "Voting: end in past");

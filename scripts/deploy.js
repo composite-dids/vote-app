@@ -18,7 +18,7 @@ const path = require("path");
 // Live composite-DID registry on Sepolia. Voting.isRegistered checks reach
 // this contract's on-chain hashtable to decide who may vote.
 const DID_REGISTRY =
-  process.env.DID_REGISTRY || "0xb1768B404EB4102CCF4DBc0c9b661a17D48dcef8";
+  process.env.DID_REGISTRY || "0x38148BACc9575AD5d6c4530F628B8D280f6E32Ec";
 
 async function main() {
   const [deployer] = await hre.ethers.getSigners();

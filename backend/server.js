@@ -19,7 +19,7 @@ const {
   CHAIN_ID = "11155111",
   PORT = "4000",
   // Live composite-DID registry on Sepolia (the "check API" for who may vote).
-  DID_REGISTRY = "0xb1768B404EB4102CCF4DBc0c9b661a17D48dcef8",
+  DID_REGISTRY = "0x38148BACc9575AD5d6c4530F628B8D280f6E32Ec",
 } = process.env;
 
 // ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 {
   "contractName": "DIDRegistry",
-  "_comment": "Minimal read-only ABI for the live composite-DID registry on Sepolia (0xb1768B404EB4102CCF4DBc0c9b661a17D48dcef8). The vote-app only READS this contract's de-dup hashtable to decide who may vote; registration itself happens in the separate DID app via the composite-DID proof flow.",
+  "_comment": "Minimal read-only ABI for the live composite-DID registry on Sepolia (0x38148BACc9575AD5d6c4530F628B8D280f6E32Ec). The vote-app only READS this contract's de-dup hashtable to decide who may vote; registration itself happens in the separate DID app via the composite-DID proof flow.",
   "abi": [
     {
       "type": "function",

@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { ethers } from "ethers";
 import { api } from "../lib/api.js";
-import { deployContracts, votingContract, friendlyError } from "../lib/eth.js";
+import {
+  votingContract,
+  friendlyError,
+  deployContracts,
+  DID_REGISTRY_ADDRESS,
+} from "../lib/eth.js";
 
 function toUnix(localValue) {
   // localValue is "YYYY-MM-DDTHH:mm" in local time.
@@ -22,12 +27,11 @@ export default function AdminPage({ wallet, config, onConfigChange }) {
   const [password, setPassword] = useState("");
   const [loginErr, setLoginErr] = useState(null);
 
+  // Deploy state
+  const [deploying, setDeploying] = useState(false);
   const [deployMsg, setDeployMsg] = useState(null);
   const [deployErr, setDeployErr] = useState(null);
-  const [deploying, setDeploying] = useState(false);
-  // Holds successfully-deployed addresses so a failed save can be retried
-  // without redeploying.
-  const [pendingAddrs, setPendingAddrs] = useState(null);
+  const [deployedVoting, setDeployedVoting] = useState(null);
 
   // Proposal form
   const [topic, setTopic] = useState("");
@@ -48,6 +52,9 @@ export default function AdminPage({ wallet, config, onConfigChange }) {
     }
   }
 
+  // Deploy a fresh Voting contract from the connected wallet, pointed at the
+  // fixed DID registry. The deployer becomes the contract's owner, but proposal
+  // creation is open to anyone, so ownership only matters for transferOwnership.
   async function handleDeploy() {
     setDeployErr(null);
     setDeployMsg(null);
@@ -61,14 +68,23 @@ export default function AdminPage({ wallet, config, onConfigChange }) {
         wallet.signer,
         (step) => setDeployMsg(step)
       );
-      console.log("Deployed:", { registrationAddress, votingAddress });
-      if (!ethers.isAddress(registrationAddress) || !ethers.isAddress(votingAddress)) {
+      if (!ethers.isAddress(votingAddress)) {
         throw new Error(
-          `Deploy returned invalid addresses (registration=${registrationAddress}, voting=${votingAddress}). Check you're on the right network and the tx confirmed.`
+          "Deploy returned an invalid address. Check you're on Sepolia and the tx confirmed."
         );
       }
-      setPendingAddrs({ registrationAddress, votingAddress });
-      await saveAddresses({ registrationAddress, votingAddress });
+      // Persist to THIS browser so it's usable immediately; to make it live for
+      // everyone, commit the snippet below to public/config.json.
+      await api.saveConfig(token, {
+        registrationAddress,
+        votingAddress,
+        chainId: wallet.chainId,
+      });
+      setDeployedVoting(votingAddress);
+      setDeployMsg(
+        "✅ Deployed and active in this browser. Commit config.json to make it live for everyone."
+      );
+      onConfigChange?.();
     } catch (e) {
       setDeployErr(friendlyError(e));
     } finally {
@@ -76,40 +92,12 @@ export default function AdminPage({ wallet, config, onConfigChange }) {
     }
   }
 
-  // Save deployed addresses to this browser (localStorage) and produce the
-  // config.json snippet the admin must commit so all visitors see the same
-  // contracts. Static site = no backend to write to.
-  async function saveAddresses(addrs) {
-    setDeployMsg("Saving addresses to this browser…");
-    await api.saveConfig(token, {
-      registrationAddress: addrs.registrationAddress,
-      votingAddress: addrs.votingAddress,
-      chainId: wallet.chainId,
-    });
-    setDeployMsg("✅ Deployed. Active in this browser now.");
-    setPendingAddrs(null);
-    onConfigChange?.();
-  }
-
-  async function retrySave() {
-    setDeployErr(null);
-    try {
-      await saveAddresses(pendingAddrs);
-    } catch (e) {
-      setDeployErr(friendlyError(e));
-    }
-  }
-
   // The exact contents to paste into frontend/public/config.json.
   function configSnippet() {
-    const a = pendingAddrs || {
-      registrationAddress: config?.registrationAddress,
-      votingAddress: config?.votingAddress,
-    };
     return JSON.stringify(
       {
-        registrationAddress: a.registrationAddress,
-        votingAddress: a.votingAddress,
+        registrationAddress: DID_REGISTRY_ADDRESS,
+        votingAddress: deployedVoting || config?.votingAddress || "",
         chainId: wallet?.chainId || 11155111,
         rpcUrl: "https://ethereum-sepolia-rpc.publicnode.com",
         adminUsername: "admin",
@@ -125,7 +113,7 @@ export default function AdminPage({ wallet, config, onConfigChange }) {
     setPropErr(null);
     setPropMsg(null);
     if (!config?.votingAddress) {
-      setPropErr("Deploy the contracts first.");
+      setPropErr("No voting contract is configured. Deploy one first.");
       return;
     }
     const startTs = toUnix(start);
@@ -184,45 +172,36 @@ export default function AdminPage({ wallet, config, onConfigChange }) {
   return (
     <div className="admin-grid">
       <section className="card">
-        <h2>1 · Deploy the Voting contract (Sepolia)</h2>
+        <h2>Deploy the Voting contract</h2>
         <p className="hint">
-          Deploys <code>Voting</code> from your connected wallet, pointed at the
-          live <code>DIDRegistry</code> below — registration is external, so no
-          Registration contract is deployed here. On this static site the new
-          address is saved to your browser immediately; to make it live for
-          everyone, commit it to <code>public/config.json</code> (snippet shown
-          after deploy).
+          Deploys a fresh <code>Voting</code> contract from your connected
+          wallet, pointed at the fixed DID registry below. Registration is
+          external, so no Registration contract is deployed here. The new
+          address is saved to this browser immediately; commit the snippet to{" "}
+          <code>public/config.json</code> to make it live for everyone.
         </p>
         <div className="config-line">
-          <span>DID registry (read-only):</span>
-          <code>{config?.registrationAddress || "—"}</code>
+          <span>Registration (DID registry, fixed):</span>
+          <code>{DID_REGISTRY_ADDRESS}</code>
         </div>
         <div className="config-line">
           <span>Voting:</span>
           <code>{config?.votingAddress || "— not deployed —"}</code>
         </div>
-        <button className="submit" onClick={handleDeploy} disabled={deploying}>
-          {deploying ? "Deploying…" : "Deploy new contracts"}
+        <button
+          className="submit"
+          onClick={handleDeploy}
+          disabled={deploying || !wallet?.signer}
+        >
+          {deploying
+            ? "Deploying…"
+            : wallet?.signer
+            ? "Deploy new Voting contract"
+            : "Connect a wallet first"}
         </button>
         {deployMsg && <div className="note success">{deployMsg}</div>}
         {deployErr && <div className="note error">{deployErr}</div>}
-        {pendingAddrs && (
-          <div className="note warn">
-            Deployed, but not yet saved to this browser.
-            <div className="config-line">
-              <span>Registration:</span>
-              <code>{pendingAddrs.registrationAddress}</code>
-            </div>
-            <div className="config-line">
-              <span>Voting:</span>
-              <code>{pendingAddrs.votingAddress}</code>
-            </div>
-            <button className="submit" onClick={retrySave}>
-              Retry save
-            </button>
-          </div>
-        )}
-        {(config?.votingAddress || pendingAddrs) && (
+        {deployedVoting && (
           <div className="note">
             <strong>Make it live for everyone:</strong> paste this into{" "}
             <code>frontend/public/config.json</code>, then commit &amp; push.
@@ -238,7 +217,11 @@ export default function AdminPage({ wallet, config, onConfigChange }) {
       </section>
 
       <section className="card">
-        <h2>2 · Publish a proposal</h2>
+        <h2>Publish a proposal</h2>
+        <p className="hint">
+          Any signed-in admin with a connected wallet can publish a proposal —
+          the transaction is signed by your wallet on Sepolia.
+        </p>
         <form onSubmit={publishProposal}>
           <label>
             Topic / question
@@ -275,20 +258,6 @@ export default function AdminPage({ wallet, config, onConfigChange }) {
           {propMsg && <div className="note success">{propMsg}</div>}
           {propErr && <div className="note error">{propErr}</div>}
         </form>
-      </section>
-
-      <section className="card">
-        <h2>3 · Voter registration</h2>
-        <p className="hint">
-          Eligibility is decided by the live composite-DID registry — the admin
-          does not register voters. Anyone who earns a DID credential in the DID
-          app is automatically allowed to vote; the Voting contract reads that
-          registry's <code>isRegistered</code> hashtable on every vote.
-        </p>
-        <div className="config-line">
-          <span>DID registry:</span>
-          <code>{config?.registrationAddress || "—"}</code>
-        </div>
       </section>
     </div>
   );

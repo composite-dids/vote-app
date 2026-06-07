@@ -63,10 +63,11 @@ describe("Voting", function () {
     );
   });
 
-  it("only the owner can create proposals", async function () {
-    await expect(
-      voting.connect(alice).createProposal("Sneaky", start, end)
-    ).to.be.revertedWith("Voting: not owner");
+  it("lets any connected wallet create proposals", async function () {
+    await expect(voting.connect(alice).createProposal("Community idea", start, end))
+      .to.emit(voting, "ProposalCreated")
+      .withArgs(1n, "Community idea", start, end);
+    expect(await voting.proposalCount()).to.equal(2n);
   });
 
   it("tallies yes and no across voters", async function () {

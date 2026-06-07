@@ -13,7 +13,7 @@ export const SEPOLIA = {
 // deploys its own Registration contract. Users register in the separate DID
 // app; the credential they earn there lands in this registry.
 export const DID_REGISTRY_ADDRESS =
-  "0xb1768B404EB4102CCF4DBc0c9b661a17D48dcef8";
+  "0x38148BACc9575AD5d6c4530F628B8D280f6E32Ec";
 
 // Where voters go to obtain a DID credential (the composite-DID frontend).
 export const DID_REGISTER_APP_URL = "https://composite-dids.github.io/";
