@@ -1,6 +1,6 @@
-# ChainVote — Decentralized Voting dApp
+# DidVote — Decentralized Voting dApp
 
-A full voting application on **Sepolia**:
+A full voting application demo:
 
 - **Smart contract** (Solidity + Hardhat) — `Voting` (proposals, yes/no tallies, time windows, double-vote protection). Eligibility is delegated to the **live composite-DID registry** already deployed on Sepolia (`0xb1768B404EB4102CCF4DBc0c9b661a17D48dcef8`) — the vote-app no longer ships its own registration contract; it reads that registry's on-chain `isRegistered` hashtable.
 - **Backend** (Express + ethers) — admin login, read-only chain queries (proposals, time-left, registration status), and a vote pre-check that rejects a repeat/invalid vote before any wallet signature.

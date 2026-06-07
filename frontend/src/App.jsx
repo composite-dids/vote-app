@@ -99,8 +99,8 @@ export default function App() {
         <div className="brand">
           <span className="logo">🗳️</span>
           <div>
-            <h1>ChainVote</h1>
-            <p>Decentralized voting on {SEPOLIA.name}</p>
+            <h1>DidVote</h1>
+            <p>Decentralized voting based on Composite Decentralized Identities</p>
           </div>
         </div>
 
