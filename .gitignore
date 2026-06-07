@@ -222,8 +222,9 @@ artifacts/
 cache/
 typechain-types/
 
-# Generated contract ABIs (run `npm run build`)
-frontend/src/contracts/
+# Generated contract ABIs.
+# frontend/src/contracts/ is intentionally COMMITTED — the static GitHub Pages
+# build imports these ABIs/bytecode and does not run hardhat in CI.
 backend/contracts/
 
 # Deployed addresses (environment-specific)

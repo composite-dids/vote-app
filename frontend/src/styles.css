@@ -496,6 +496,18 @@ code {
   word-break: break-all;
 }
 
+.snippet {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 12px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  overflow-x: auto;
+  margin: 10px 0;
+  white-space: pre;
+}
+
 .link-btn {
   background: none;
   border: none;

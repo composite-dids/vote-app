@@ -115,6 +115,32 @@ Or run a local chain: `npm run node` then `npm run deploy:local`.
 
 ---
 
+## Deploy the frontend to GitHub Pages (static, no backend)
+
+The frontend can run fully client-side: it reads chain state through a public
+Sepolia RPC and signs votes/deploys via MetaMask. No server is needed.
+
+1. **Repo name must match the base path.** The site lives at
+   `https://<account>.github.io/vote-app/`, so the repo must be named `vote-app`
+   (the Vite `base` is `/vote-app/`; override with the `VITE_BASE` env var if you
+   fork to a different name).
+2. **Commit the deployed addresses.** `frontend/public/config.json` holds the
+   `Registration`/`Voting` addresses, chain id, and RPC URL that every visitor
+   uses. It's already filled in with your deployed contracts.
+3. **Push to `main`.** The included workflow (`.github/workflows/deploy.yml`)
+   builds `frontend/` and publishes `dist/` to Pages.
+4. **Enable Pages:** repo **Settings → Pages → Build and deployment → Source = "GitHub Actions"**.
+5. Open `https://<account>.github.io/vote-app/`.
+
+To change contracts later: deploy from the Admin tab, copy the shown
+`config.json` snippet into `frontend/public/config.json`, commit, and push.
+
+> The `adminUsername`/`adminPassword` in `config.json` are a **cosmetic** gate
+> only (the file is public). Real protection is on-chain: admin actions
+> (`createProposal`, `registerVoter`) only succeed from the wallet that owns the
+> contracts. For production reads, replace the public `rpcUrl` with your own
+> Alchemy/Infura endpoint to avoid rate limits.
+
 ## Notes / security
 
 - Admin auth is a simple username/password → JWT for the demo. Use a real identity provider and strong `JWT_SECRET` in production.

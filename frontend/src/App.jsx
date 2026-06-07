@@ -248,7 +248,8 @@ export default function App() {
       </main>
 
       <footer className="footer">
-        Backend reads chain state · votes &amp; deploys are signed in your wallet.
+        Fully on-chain · reads via public RPC · votes &amp; deploys are signed in your
+        wallet.
       </footer>
     </div>
   );

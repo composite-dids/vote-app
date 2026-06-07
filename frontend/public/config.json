@@ -1,0 +1,8 @@
+{
+  "registrationAddress": "0xb5212CBa55B3CEC99071365A4145d118f3DD1B0a",
+  "votingAddress": "0x4A7A70B3674EBF6f7F573cC1241B177Bd8EDaA05",
+  "chainId": 11155111,
+  "rpcUrl": "https://ethereum-sepolia-rpc.publicnode.com",
+  "adminUsername": "admin",
+  "adminPassword": "changeme"
+}

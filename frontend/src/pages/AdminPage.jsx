@@ -86,20 +86,17 @@ export default function AdminPage({ wallet, config, onConfigChange }) {
     }
   }
 
-  // Persist deployed addresses to the backend (separated so it can be retried).
+  // Save deployed addresses to this browser (localStorage) and produce the
+  // config.json snippet the admin must commit so all visitors see the same
+  // contracts. Static site = no backend to write to.
   async function saveAddresses(addrs) {
-    setDeployMsg("Saving addresses to backend…");
+    setDeployMsg("Saving addresses to this browser…");
     await api.saveConfig(token, {
       registrationAddress: addrs.registrationAddress,
       votingAddress: addrs.votingAddress,
       chainId: wallet.chainId,
     });
-    setDeployMsg(
-      `✅ Deployed & saved. Registration ${addrs.registrationAddress.slice(
-        0,
-        10
-      )}… · Voting ${addrs.votingAddress.slice(0, 10)}…`
-    );
+    setDeployMsg("✅ Deployed. Active in this browser now.");
     setPendingAddrs(null);
     onConfigChange?.();
   }
@@ -111,6 +108,26 @@ export default function AdminPage({ wallet, config, onConfigChange }) {
     } catch (e) {
       setDeployErr(friendlyError(e));
     }
+  }
+
+  // The exact contents to paste into frontend/public/config.json.
+  function configSnippet() {
+    const a = pendingAddrs || {
+      registrationAddress: config?.registrationAddress,
+      votingAddress: config?.votingAddress,
+    };
+    return JSON.stringify(
+      {
+        registrationAddress: a.registrationAddress,
+        votingAddress: a.votingAddress,
+        chainId: wallet?.chainId || 11155111,
+        rpcUrl: "https://ethereum-sepolia-rpc.publicnode.com",
+        adminUsername: "admin",
+        adminPassword: "changeme",
+      },
+      null,
+      2
+    );
   }
 
   async function publishProposal(e) {
@@ -187,8 +204,10 @@ export default function AdminPage({ wallet, config, onConfigChange }) {
           {loginErr && <div className="note error">{loginErr}</div>}
         </form>
         <p className="hint">
-          Default dev credentials: <code>admin</code> / <code>changeme</code> (set in
-          backend <code>.env</code>).
+          Default credentials: <code>admin</code> / <code>changeme</code> (set in{" "}
+          <code>public/config.json</code>). This is a cosmetic gate only — admin
+          actions are truly protected on-chain: they only succeed from the wallet
+          that owns the contracts.
         </p>
       </div>
     );
@@ -200,7 +219,9 @@ export default function AdminPage({ wallet, config, onConfigChange }) {
         <h2>1 · Deploy contracts (Sepolia)</h2>
         <p className="hint">
           Deploys <code>Registration</code> + <code>Voting</code> from your connected
-          wallet, then records the addresses in the backend.
+          wallet. On this static site the new addresses are saved to your browser
+          immediately; to make them live for everyone, commit them to{" "}
+          <code>public/config.json</code> (snippet shown after deploy).
         </p>
         <div className="config-line">
           <span>Registration:</span>
@@ -217,7 +238,7 @@ export default function AdminPage({ wallet, config, onConfigChange }) {
         {deployErr && <div className="note error">{deployErr}</div>}
         {pendingAddrs && (
           <div className="note warn">
-            Contracts deployed but not yet saved to the backend.
+            Deployed, but not yet saved to this browser.
             <div className="config-line">
               <span>Registration:</span>
               <code>{pendingAddrs.registrationAddress}</code>
@@ -228,6 +249,19 @@ export default function AdminPage({ wallet, config, onConfigChange }) {
             </div>
             <button className="submit" onClick={retrySave}>
               Retry save
+            </button>
+          </div>
+        )}
+        {(config?.votingAddress || pendingAddrs) && (
+          <div className="note">
+            <strong>Make it live for everyone:</strong> paste this into{" "}
+            <code>frontend/public/config.json</code>, then commit &amp; push.
+            <pre className="snippet">{configSnippet()}</pre>
+            <button
+              className="submit"
+              onClick={() => navigator.clipboard?.writeText(configSnippet())}
+            >
+              Copy config.json
             </button>
           </div>
         )}
