@@ -67,14 +67,28 @@ function shapeProposal(id, raw) {
   };
 }
 
+// ethers v6 rejects addresses whose mixed-case doesn't match the EIP-55
+// checksum. Config/localStorage may hold a hand-edited address in any casing,
+// so normalize to a proper checksummed address (or null) before it ever reaches
+// ethers.Contract. getAddress also accepts all-lowercase input.
+function normalizeAddress(addr) {
+  if (!addr) return null;
+  try {
+    return ethers.getAddress(addr);
+  } catch {
+    return ethers.getAddress(String(addr).toLowerCase());
+  }
+}
+
 async function resolveConfig() {
   const stat = await loadStaticConfig();
   const override = loadLocalOverride(); // admin's freshly-deployed addresses
   const cfg = { ...stat, ...override };
   return {
     // Registration is always the live DIDRegistry unless explicitly overridden.
-    registrationAddress: cfg.registrationAddress || DID_REGISTRY_ADDRESS,
-    votingAddress: cfg.votingAddress || null,
+    registrationAddress:
+      normalizeAddress(cfg.registrationAddress) || DID_REGISTRY_ADDRESS,
+    votingAddress: normalizeAddress(cfg.votingAddress),
     chainId: cfg.chainId || DEFAULT_CHAIN_ID,
     rpcUrl: cfg.rpcUrl || DEFAULT_RPC,
     adminUsername: cfg.adminUsername || "admin",
